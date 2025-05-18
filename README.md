@@ -59,4 +59,6 @@ Export data as CSV
 
 Password/biometric lock (optional privacy)
 
-
+# Copyright
+2025 Divyansh-divydeveloper. All rights reserved.
+No part of this document may be reproduced or distributed without prior written permission.
