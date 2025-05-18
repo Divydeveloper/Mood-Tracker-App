@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mood Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { font-size: 2em; margin-bottom: 10px; }
+    .mood-btn {
+      font-size: 2rem;
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .mood-btn:hover { transform: scale(1.2); }
+
+    .calendar-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .calendar-controls button {
+      background: #ddd;
+      border: none;
+      padding: 5px 15px;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #month-label {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .day {
+      border-radius: 10px;
+      padding: 5px;
+      height: 60px;
+      width: 60px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      background-color: #e0e0e0;
+      transition: 0.3s;
+    }
+
+    #stats {
+      margin-top: 30px;
+    }
+
+    button.clear {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 Mood Tracker</h1>
+
+  <div>
+    <button class="mood-btn" data-mood="happy">😊</button>
+    <button class="mood-btn" data-mood="sad">😢</button>
+    <button class="mood-btn" data-mood="angry">😡</button>
+    <button class="mood-btn" data-mood="relaxed">😌</button>
+    <button class="mood-btn" data-mood="stressed">😰</button>
+  </div>
+
+  <div class="calendar-controls">
+    <button onclick="changeMonth(-1)">⬅️</button>
+    <div id="month-label">This Month</div>
+    <button onclick="changeMonth(1)">➡️</button>
+  </div>
+
+  <div class="calendar" id="calendar"></div>
+
+  <h2>Your Mood Stats</h2>
+  <div id="stats"></div>
+
+  <button class="clear" onclick="clearData()">🧹 Clear Mood Data</button>
+
+  <script>
+    const emojiMap = {
+      happy: "😊",
+      sad: "😢",
+      angry: "😡",
+      relaxed: "😌",
+      stressed: "😰"
+    };
+
+    let moodData = JSON.parse(localStorage.getItem('moodTracker') || '{}');
+    let moodHistory = JSON.parse(localStorage.getItem('moodHistory') || '[]');
+
+    let currentDate = new Date();
+
+    document.querySelectorAll('.mood-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mood = btn.dataset.mood;
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0];
+
+        // Save for calendar
+        moodData[dateStr] = mood;
+        localStorage.setItem('moodTracker', JSON.stringify(moodData));
+
+        // Save history
+        moodHistory.push({ date: today.toISOString(), mood });
+        localStorage.setItem('moodHistory', JSON.stringify(moodHistory));
+
+        generateCalendar();
+        updateStats();
+      });
+    });
+
+    function changeMonth(offset) {
+      currentDate.setMonth(currentDate.getMonth() + offset);
+      generateCalendar();
+    }
+
+    function generateCalendar() {
+      const calendar = document.getElementById('calendar');
+      calendar.innerHTML = "";
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      document.getElementById("month-label").textContent = `${monthNames[month]} ${year}`;
+
+      // Pad empty days
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        calendar.appendChild(empty);
+      }
+
+      // Fill actual days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const div = document.createElement('div');
+        div.className = "day";
+
+        const mood = moodData[dateKey];
+        div.innerHTML = `
+          <div>${mood ? emojiMap[mood] : "•"}</div>
+          <div style="font-size:0.8rem;color:#555;">${day}</div>
+        `;
+
+        calendar.appendChild(div);
+      }
+    }
+
+    function updateStats() {
+      const moodCount = {};
+      moodHistory.forEach(entry => {
+        moodCount[entry.mood] = (moodCount[entry.mood] || 0) + 1;
+      });
+
+      const statsEl = document.getElementById('stats');
+      if (!moodHistory.length) {
+        statsEl.textContent = "No mood history yet!";
+        return;
+      }
+
+      const sorted = Object.entries(moodCount).sort((a, b) => b[1] - a[1]);
+      const mostCommon = sorted[0][0];
+      const total = moodHistory.length;
+
+      statsEl.innerHTML = `
+        <p><strong>Total Entries:</strong> ${total}</p>
+        <p><strong>Most Frequent Mood:</strong> ${emojiMap[mostCommon]} (${mostCommon})</p>
+        <ul style="list-style:none;padding:0;">
+          ${sorted.map(([m, count]) => `<li>${emojiMap[m]} ${m}: ${count}</li>`).join("")}
+        </ul>
+      `;
+    }
+
+    function clearData() {
+      if (confirm("Clear all your mood data?")) {
+        localStorage.removeItem('moodTracker');
+        localStorage.removeItem('moodHistory');
+        location.reload();
+      }
+    }
+
+    generateCalendar();
+    updateStats();
+  </script>
+</body>
+</html>
